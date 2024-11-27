@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
+import { AddOrEditUser } from "../components/AddOrEditUser";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 export default function Settings() {
   const { shareboardId, ownerKey } = useParams(); // Hole shareboardId und ownerKey aus der URL
   const [boardData, setBoardData] = useState(null);
-  const [newUserName, setNewUserName] = useState("");
-  const [newUserEmail, setNewUserEmail] = useState("");
-
   const [editUserId, setEditUserId] = useState(null);
-  const [editUserName, setEditUserName] = useState("");
-  const [editUserEmail, setEditUserEmail] = useState("");
-
   const { state } = useLocation();
   console.log("state: ", state);
   console.log(state.result.owner.rights);
@@ -41,15 +36,10 @@ export default function Settings() {
 
   const handleEditUser = (user) => {
     setEditUserId(user.id);
-    setEditUserName(user.name);
-    setEditUserEmail(user.email || "");
   };
 
-  const handleSaveUser = async (e) => {
-    e.preventDefault();
-
-    const updatedUser = { name: editUserName, email: editUserEmail };
-
+  const handleSaveUser = async (updatedUser) => {
+    setEditUserId(null); // Bearbeitungsmodus beenden
     try {
       const response = await fetch(
         `${backendUrl}/api/settings/${shareboardId}/${ownerKey}/users/${editUserId}`,
@@ -72,10 +62,6 @@ export default function Settings() {
               : user
           ),
         }));
-
-        setEditUserId(null); // Bearbeitung zurücksetzen
-        setEditUserName(""); // Eingabefeld zurücksetzen
-        setEditUserEmail(""); // Eingabefeld zurücksetzen
       } else {
         console.log("Fehler beim Speichern der Änderungen.");
       }
@@ -84,13 +70,7 @@ export default function Settings() {
     }
   };
 
-  const handleAddUser = async (e) => {
-    e.preventDefault();
-    const newUser = {
-      name: newUserName,
-      email: newUserEmail,
-    };
-
+  const handleAddUser = async (newUser) => {
     try {
       const response = await fetch(
         `${backendUrl}/api/settings/${shareboardId}/${ownerKey}/users`,
@@ -108,11 +88,7 @@ export default function Settings() {
         setBoardData((prevData) => {
           return { ...prevData, users: data.users };
         }); // Board-Daten neu laden
-        setNewUserName(""); // Formular zurücksetzen
-        setNewUserEmail(""); // Formular zurücksetzen
       } else {
-        setNewUserName("");
-        setNewUserEmail("");
         console.log("Fehler beim Hinzufügen des Benutzers.");
       }
     } catch (error) {
@@ -132,34 +108,14 @@ export default function Settings() {
       <p>Boardowner: {boardData.ownerName}</p>
       <p>Your personal Owner Key: {boardData.ownerKey}</p>
       <h2>Benutzer Hinzufügen</h2>
-      <form onSubmit={handleAddUser}>
-        <div>
-          <label>Name des neuen Benutzers:</label>
-          <input
-            type="text"
-            value={newUserName}
-            onChange={(e) => setNewUserName(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>E-Mail des neuen Benutzers (optional):</label>
-          <input
-            type="email"
-            value={newUserEmail}
-            onChange={(e) => setNewUserEmail(e.target.value)}
-          />
-        </div>
-        <button type="submit">Benutzer hinzufügen</button>
-      </form>
-
+      <AddOrEditUser
+        actionTitle="Benutzer hinzufügen"
+        onSubmit={handleAddUser}
+      />
       <h2>Benutzer des Boards</h2>
       <ul>
         {boardData.users
-          .filter((user) => {
-            return user.rights === false;
-          })
-
+          .filter((user) => user.rights === false)
           .map((user) => (
             <li key={user.id}>
               {user.name} {user.email ? `(${user.email})` : "(Keine E-Mail)"}
@@ -167,27 +123,12 @@ export default function Settings() {
               Schlüssel: {user.shareboardKey}
               {/* Bearbeitungsformular nur anzeigen, wenn der Benutzer bearbeitet wird */}
               {editUserId === user.id ? (
-                <form onSubmit={handleSaveUser}>
-                  <div>
-                    <label>Neuer Name:</label>
-                    <input
-                      type="text"
-                      value={editUserName}
-                      onChange={(e) => setEditUserName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label>Neue E-Mail:</label>
-                    <input
-                      type="email"
-                      value={editUserEmail}
-                      onChange={(e) => setEditUserEmail(e.target.value)}
-                    />
-                  </div>
-                  <button type="submit">Speichern</button>
-                  <button onClick={() => setEditUserId(null)}>Abbrechen</button>
-                </form>
+                <AddOrEditUser
+                  user={user}
+                  actionTitle="Speichern"
+                  onSubmit={handleSaveUser}
+                  onCancel={() => setEditUserId(null)}
+                />
               ) : (
                 <button onClick={() => handleEditUser(user)}>Bearbeiten</button>
               )}
